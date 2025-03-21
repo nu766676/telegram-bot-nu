@@ -4,8 +4,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from telegram.error import TimedOut
 
-# Получаем токен из переменных окружения
+# Получаем токен и порт из переменных окружения
 TOKEN = os.environ.get("TOKEN")
+PORT = int(os.environ.get("PORT", 10000))  # Порт по умолчанию 10000
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # URL для вебхука
 
 # Прямые ссылки на файлы на Google Диске
 FILE_URLS = {
@@ -150,7 +152,15 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_error_handler(error_handler)
 
-    app.run_polling()
+    # Используем вебхуки, если указан WEBHOOK_URL
+    if WEBHOOK_URL:
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            webhook_url=WEBHOOK_URL,
+        )
+    else:
+        app.run_polling()
 
 if __name__ == "__main__":
     main()
