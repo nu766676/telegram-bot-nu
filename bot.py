@@ -15,7 +15,6 @@ FILE_URLS = {
     "bron_pic.jpg": "https://drive.google.com/uc?id=1TrH4GCkFVAwEzf_vJ5FcqjlmrMxIl_u3",
     "bonus_pic.jpg": "https://drive.google.com/uc?id=1o-x6e2meNsmQyKIQGUEUsO1RtC4spTSC",
     "anketa_pic.jpg": "https://drive.google.com/uc?id=12lx9dDl7WuaG1he6GDWAdENLvUGyiCBO",
-    "menu.pdf": "https://drive.google.com/uc?id=1xOz_D8Su0rBVeP5w_c1XeioqEHFdnmNe",
 }
 
 # Функция для скачивания файла при необходимости
@@ -80,26 +79,34 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif data == 'book':
+        await download_file_if_needed('bron_pic.jpg', FILE_URLS["bron_pic.jpg"])
         keyboard = [
             [InlineKeyboardButton("Скопировать номер 📋", callback_data='copy_number')],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text(
-            text="Для брони, пожалуйста, позвоните: +79148985744",
-            reply_markup=reply_markup
-        )
+        with open('bron_pic.jpg', 'rb') as photo:
+            await query.message.reply_photo(
+                photo=photo,
+                caption="Для брони, пожалуйста, позвоните: +79148985744",
+                reply_markup=reply_markup
+            )
 
     elif data == 'copy_number':
         await query.message.reply_text("Скопируйте номер: +79148985744")
 
     elif data == 'menu':
-        keyboard = [
-            [InlineKeyboardButton("Открыть меню в браузере 🌐", url=FILE_URLS["menu.pdf"])],
-            [InlineKeyboardButton("Назад ↩️", callback_data='back')],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text("Нажмите на кнопку ниже, чтобы открыть меню:", reply_markup=reply_markup)
+        # Используем локальный файл menu.pdf
+        menu_path = "menu.pdf"
+        if os.path.exists(menu_path):
+            keyboard = [
+                [InlineKeyboardButton("Открыть меню в браузере 🌐", url=f"https://yourdomain.com/{menu_path}")],
+                [InlineKeyboardButton("Назад ↩️", callback_data='back')],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.message.reply_text("Нажмите на кнопку ниже, чтобы открыть меню:", reply_markup=reply_markup)
+        else:
+            await query.message.reply_text("Меню временно недоступно. Пожалуйста, попробуйте позже.")
 
     elif data == 'bonus':
         await download_file_if_needed('bonus_pic.jpg', FILE_URLS["bonus_pic.jpg"])
