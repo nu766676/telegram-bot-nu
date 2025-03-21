@@ -86,12 +86,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.message.reply_text(
-            text="Для брони, пожалуйста, позвоните: +7 (914) 4444444444",
+            text="Для брони, пожалуйста, позвоните: +79148985744",
             reply_markup=reply_markup
         )
 
     elif data == 'copy_number':
-        await query.message.reply_text("Скопируйте номер: +7 (914) 44444444444")
+        await query.message.reply_text("Скопируйте номер: +79148985744")
 
     elif data == 'menu':
         keyboard = [
