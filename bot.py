@@ -4,12 +4,10 @@ from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
-# Получаем переменные окружения
 TOKEN = os.environ.get("TOKEN")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 PORT = int(os.environ.get("PORT", 10000))
 
-# Ссылки на изображения и PDF-файл из GitHub
 RAW_BASE = "https://raw.githubusercontent.com/nu766676/telegram-bot-nu/main"
 FILE_URLS = {
     "smile": f"{RAW_BASE}/smile_pic.jpg",
@@ -21,7 +19,6 @@ FILE_URLS = {
     "menu": f"{RAW_BASE}/menu.pdf",
 }
 
-# Flask-приложение и Telegram Application
 app = Flask(__name__)
 telegram_app = Application.builder().token(TOKEN).build()
 NAME = range(1)
@@ -100,10 +97,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @app.route(f'/{TOKEN}', methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    asyncio.create_task(telegram_app.process_update(update))  # ← Ключевой момент
+    asyncio.run(telegram_app.process_update(update))
     return "OK", 200
 
-# === Установка Webhook при запуске ===
+# === Установка Webhook ===
 async def startup():
     await telegram_app.initialize()
     await telegram_app.start()
@@ -114,7 +111,7 @@ telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
-# === Запуск Flask и Telegram Application ===
+# === Запуск приложения ===
 if __name__ == '__main__':
     asyncio.run(startup())
     app.run(host='0.0.0.0', port=PORT)
