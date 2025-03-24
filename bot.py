@@ -6,11 +6,11 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 # Telegram токен и Webhook URL из переменных окружения
 TOKEN = os.environ.get("TOKEN")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # Пример: https://your-app-name.onrender.com
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # Пример: https://telegram-bot-nu.onrender.com
 PORT = int(os.environ.get('PORT', 10000))
 
 # GitHub RAW-ссылки на изображения и PDF
-RAW_BASE = "https://raw.githubusercontent.com/your_username/your_repository/main"
+RAW_BASE = "https://raw.githubusercontent.com/nu766676/telegram-bot-nu/main"
 FILE_URLS = {
     "smile": f"{RAW_BASE}/smile_pic.jpg",
     "help": f"{RAW_BASE}/help_pic.jpg",
