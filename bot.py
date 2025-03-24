@@ -98,11 +98,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
 
-    # Создаём временный event loop вручную
+    async def handle():
+        await telegram_app.process_update(update)
+
     loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(telegram_app.process_update(update))
+        loop.run_until_complete(handle())
     finally:
         loop.close()
 
