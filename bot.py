@@ -23,15 +23,18 @@ app = Flask(__name__)
 telegram_app = Application.builder().token(TOKEN).build()
 NAME = range(1)
 
+# === /start ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_photo(photo=FILE_URLS["smile"], caption="Привет! 👋 Я чат-бот «Не Усложняй». Как тебя зовут?")
     return NAME
 
+# === Обработка имени ===
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['name'] = update.message.text
     await show_main_menu(update, context)
     return -1
 
+# === Главное меню ===
 async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("О нас ✴️", callback_data='about'), InlineKeyboardButton("Меню 📋", callback_data='menu')],
@@ -41,11 +44,13 @@ async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     caption = f"{context.user_data.get('name', 'Друг')}, я могу быть очень полезным! Что тебя интересует? 😉"
+
     if isinstance(update_or_query, Update):
         await update_or_query.message.reply_photo(photo=FILE_URLS["help"], caption=caption, reply_markup=reply_markup)
     else:
         await update_or_query.message.reply_photo(photo=FILE_URLS["help"], caption=caption, reply_markup=reply_markup)
 
+# === Обработка кнопок ===
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -88,23 +93,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'back':
         await show_main_menu(query, context)
 
+# === Webhook endpoint ===
 @app.route(f'/{TOKEN}', methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    return asyncio.run(telegram_app.process_update(update)), 200
+    telegram_app.update_queue.put_nowait(update)  # Кладём update в очередь
+    return "OK", 200  # Возвращаем успешный ответ Telegram
 
-# Установка вебхука + запуск
+# === Установка Webhook и запуск Telegram-приложения ===
 async def startup():
     await telegram_app.initialize()
     await telegram_app.start()
     await telegram_app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
-# Регистрация хендлеров
+# === Регистрируем обработчики ===
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
-# Запуск приложения
+# === Запуск ===
 if __name__ == '__main__':
     asyncio.run(startup())
     app.run(host='0.0.0.0', port=PORT)
