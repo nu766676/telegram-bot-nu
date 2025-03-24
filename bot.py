@@ -1,11 +1,20 @@
 import os
 import gdown
+from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
-from telegram.error import TimedOut
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
+import asyncio
 
-# Получаем токен из переменных окружения
+# Настройки
 TOKEN = os.environ.get("TOKEN")
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # будет использоваться ниже
+PORT = int(os.environ.get('PORT', 10000))
+
+# Flask приложение
+app = Flask(__name__)
+
+# Telegram Application
+telegram_app = Application.builder().token(TOKEN).build()
 
 # Прямые ссылки на файлы на Google Диске
 FILE_URLS = {
@@ -16,34 +25,27 @@ FILE_URLS = {
     "bonus_pic.jpg": "https://drive.google.com/uc?id=1o-x6e2meNsmQyKIQGUEUsO1RtC4spTSC",
     "anketa_pic.jpg": "https://drive.google.com/uc?id=12lx9dDl7WuaG1he6GDWAdENLvUGyiCBO",
 }
-
-# Ссылка на файл menu.pdf в GitHub
 MENU_PDF_URL = "https://raw.githubusercontent.com/your_username/your_repository/main/menu.pdf"
 
-# Функция для скачивания файла при необходимости
 async def download_file_if_needed(filename, url):
     if not os.path.exists(filename):
         gdown.download(url, filename, quiet=True)
 
-# Состояние для запроса имени
 NAME = range(1)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await download_file_if_needed('smile_pic.jpg', FILE_URLS["smile_pic.jpg"])
-
     with open('smile_pic.jpg', 'rb') as photo:
         await update.message.reply_photo(photo=photo, caption="Привет! 👋 Я чат-бот «Не Усложняй». Как тебя зовут?")
     return NAME
 
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_name = update.message.text
-    context.user_data['name'] = user_name
+    context.user_data['name'] = update.message.text
     await show_main_menu(update, context)
     return -1
 
 async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     await download_file_if_needed('help_pic.jpg', FILE_URLS["help_pic.jpg"])
-
     keyboard = [
         [InlineKeyboardButton("О нас ✴️", callback_data='about'), InlineKeyboardButton("Меню 📋", callback_data='menu')],
         [InlineKeyboardButton("Забронировать стол 📞", callback_data='book')],
@@ -51,7 +53,6 @@ async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("Помоги нам стать лучше 🙏", callback_data='feedback')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     with open('help_pic.jpg', 'rb') as photo:
         caption = f"{context.user_data.get('name', 'Друг')}, я могу быть очень полезным! Что тебя интересует? 😉"
         if isinstance(update_or_query, Update):
@@ -62,7 +63,6 @@ async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     data = query.data
 
     if data == 'about':
@@ -77,15 +77,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open('about_pic.jpg', 'rb') as photo:
             await query.message.reply_photo(
                 photo=photo,
-                caption="Мы рады видеть тебя в нашем уютном заведении! 🌟 Подписывайся на соцсети и оставляй отзывы! 💬",
+                caption="Мы рады видеть тебя в нашем уютном заведении! 🌟",
                 reply_markup=reply_markup
             )
 
     elif data == 'book':
         await download_file_if_needed('bron_pic.jpg', FILE_URLS["bron_pic.jpg"])
-        keyboard = [
-            [InlineKeyboardButton("Назад ↩️", callback_data='back')],
-        ]
+        keyboard = [[InlineKeyboardButton("Назад ↩️", callback_data='back')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         with open('bron_pic.jpg', 'rb') as photo:
             await query.message.reply_photo(
@@ -99,8 +97,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("Открыть меню в браузере 🌐", url=MENU_PDF_URL)],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text("Нажмите на кнопку ниже, чтобы открыть меню:", reply_markup=reply_markup)
+        await query.message.reply_text("Нажмите на кнопку ниже, чтобы открыть меню:", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == 'bonus':
         await download_file_if_needed('bonus_pic.jpg', FILE_URLS["bonus_pic.jpg"])
@@ -108,13 +105,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("Регистрация бонусной карты 📝", url="https://iiko.biz/L/075535")],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
         with open('bonus_pic.jpg', 'rb') as photo:
-            await query.message.reply_photo(
-                photo=photo,
-                caption="Бонусы: 🎁 15% скидка именинникам, 5% кэшбек, 600 бонусов при регистрации, 150 за анкету!",
-                reply_markup=reply_markup
-            )
+            await query.message.reply_photo(photo=photo, caption="Бонусы! 🎁", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == 'feedback':
         await download_file_if_needed('anketa_pic.jpg', FILE_URLS["anketa_pic.jpg"])
@@ -122,29 +114,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("Заполнить анкету 📝", url="https://docs.google.com/forms/d/e/1FAIpQLSeiTU3ouHFEyhRMCRh_cpVpD_Dn5laaLdtFzP8Nx8uni8c1Rw/viewform")],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
         with open('anketa_pic.jpg', 'rb') as photo:
-            await query.message.reply_photo(
-                photo=photo,
-                caption="Заполни анкету и получи бонусы! 💰",
-                reply_markup=reply_markup
-            )
+            await query.message.reply_photo(photo=photo, caption="Заполни анкету и получи бонусы! 💰", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == 'back':
         await show_main_menu(query, context)
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Произошла ошибка: {context.error}")
+# Webhook endpoint
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    asyncio.run(telegram_app.process_update(update))
+    return "ok", 200
 
-def main():
-    app = Application.builder().token(TOKEN).build()
+# Установка Webhook при запуске
+@app.before_first_request
+def set_webhook():
+    url = f"{WEBHOOK_URL}/{TOKEN}"
+    asyncio.run(telegram_app.bot.set_webhook(url))
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_error_handler(error_handler)
+# Регистрация хендлеров
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
+telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
-    app.run_polling()
-
+# Запуск Flask-сервера
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=PORT)
