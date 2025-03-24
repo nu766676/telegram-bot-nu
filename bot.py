@@ -105,15 +105,23 @@ def webhook():
     asyncio.run(telegram_app.process_update(update))
     return "ok", 200
 
-# Установка Webhook
-async def setup_webhook():
+# Установка Webhook + инициализация приложения
+async def startup():
+    await telegram_app.initialize()
+    await telegram_app.start()
     webhook_url = f"{WEBHOOK_URL}/{TOKEN}"
     await telegram_app.bot.set_webhook(webhook_url)
 
-# Регистрация хендлеров
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
-telegram_app.add_handler(CallbackQueryHandler(button_handler))
+# Обработка входящих webhook-запросов
+@app.route(f'/{TOKEN}', methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    return asyncio.run(telegram_app.process_update(update)), 200
+
+# Запуск
+if __name__ == '__main__':
+    asyncio.run(startup())
+    app.run(host='0.0.0.0', port=PORT)
 
 # Запуск приложения
 if __name__ == '__main__':
