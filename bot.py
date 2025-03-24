@@ -23,9 +23,6 @@ FILE_URLS = {
 # Flask
 app = Flask(__name__)
 telegram_app = Application.builder().token(TOKEN).build()
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
 NAME = range(1)
 
 # /start
@@ -42,9 +39,9 @@ async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Главное меню
 async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("О нас ✴️", callback_data='about'), InlineKeyboardButton("Меню 📋", callback_data='menu')],
+        [InlineKeyboardButton("О нас ✴️", callback_data='about'), InlineKeyboardButton("Меню 📜", callback_data='menu')],
         [InlineKeyboardButton("Забронировать стол 📞", callback_data='book')],
-        [InlineKeyboardButton("Бонусная программа 💰🎁", callback_data='bonus')],
+        [InlineKeyboardButton("Бонусная программа 💰🏱", callback_data='bonus')],
         [InlineKeyboardButton("Помоги нам стать лучше 🙏", callback_data='feedback')],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -59,7 +56,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == 'about':
         keyboard = [
-            [InlineKeyboardButton("Яндекс Карты 🗺️", url="https://yandex.ru/maps/-/CHFWQPPa")],
+            [InlineKeyboardButton("Яндекс Карты 🗚️", url="https://yandex.ru/maps/-/CHFWQPPa")],
             [InlineKeyboardButton("2ГИС Карты 🏙️", url="https://2gis.ru/irkutsk/geo/70000001039853425")],
             [InlineKeyboardButton("Instagram 📸", url="https://www.instagram.com/nu_irk1")],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
@@ -76,7 +73,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]))
 
     elif data == 'bonus':
-        await query.message.reply_photo(photo=FILE_URLS["bonus"], caption="Бонусы! 🎁", reply_markup=InlineKeyboardMarkup([
+        await query.message.reply_photo(photo=FILE_URLS["bonus"], caption="Бонусы! 🏱", reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("Регистрация бонусной карты 📝", url="https://iiko.biz/L/075535")],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]))
@@ -94,7 +91,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @app.route(f'/{TOKEN}', methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    loop.create_task(telegram_app.process_update(update))
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    loop.run_until_complete(telegram_app.process_update(update))
     return "OK", 200
 
 # Startup
@@ -110,5 +117,5 @@ telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
 # Запуск
 if __name__ == '__main__':
-    loop.run_until_complete(startup())
+    asyncio.run(startup())
     app.run(host='0.0.0.0', port=PORT)
