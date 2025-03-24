@@ -4,12 +4,12 @@ from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
-# Telegram токен и Webhook URL из переменных окружения
+# Получаем токен и адрес вебхука из переменных окружения
 TOKEN = os.environ.get("TOKEN")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # Пример: https://telegram-bot-nu.onrender.com
-PORT = int(os.environ.get('PORT', 10000))
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # Например: https://telegram-bot-nu.onrender.com
+PORT = int(os.environ.get("PORT", 10000))
 
-# GitHub RAW-ссылки на изображения и PDF
+# Ссылки на файлы в GitHub (RAW-ссылки)
 RAW_BASE = "https://raw.githubusercontent.com/nu766676/telegram-bot-nu/main"
 FILE_URLS = {
     "smile": f"{RAW_BASE}/smile_pic.jpg",
@@ -24,14 +24,16 @@ FILE_URLS = {
 # Flask-приложение
 app = Flask(__name__)
 telegram_app = Application.builder().token(TOKEN).build()
+
+# Состояние для FSM
 NAME = range(1)
 
-# Команда /start
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_photo(photo=FILE_URLS["smile"], caption="Привет! 👋 Я чат-бот «Не Усложняй». Как тебя зовут?")
     return NAME
 
-# Обработка имени
+# Ответ на имя
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['name'] = update.message.text
     await show_main_menu(update, context)
@@ -66,15 +68,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("Instagram 📸", url="https://www.instagram.com/nu_irk1?igsh=MW15OWU5NGJ6ZDVnMw==")],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]
-        await query.message.reply_photo(photo=FILE_URLS["about"],
-                                        caption="Мы рады видеть тебя в нашем уютном заведении! 🌟",
-                                        reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.reply_photo(photo=FILE_URLS["about"], caption="Мы рады видеть тебя в нашем уютном заведении! 🌟", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == 'book':
         keyboard = [[InlineKeyboardButton("Назад ↩️", callback_data='back')]]
-        await query.message.reply_photo(photo=FILE_URLS["bron"],
-                                        caption="Для брони, пожалуйста, позвоните: +79148985744",
-                                        reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.reply_photo(photo=FILE_URLS["bron"], caption="Для брони, пожалуйста, позвоните: +79148985744", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data == 'menu':
         keyboard = [
@@ -100,24 +98,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'back':
         await show_main_menu(query, context)
 
-# Обработка Webhook-запросов от Telegram
+# Webhook endpoint
 @app.route(f'/{TOKEN}', methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
     asyncio.run(telegram_app.process_update(update))
     return "ok", 200
 
-# Установка Webhook при запуске
-@app.before_first_request
-def setup():
+# Установка Webhook
+async def setup_webhook():
     webhook_url = f"{WEBHOOK_URL}/{TOKEN}"
-    asyncio.run(telegram_app.bot.set_webhook(webhook_url))
+    await telegram_app.bot.set_webhook(webhook_url)
 
-# Регистрация обработчиков
+# Регистрация хендлеров
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
-# Запуск Flask-сервера
+# Запуск приложения
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=PORT)
+    asyncio.run(setup_webhook())
+    app.run(host="0.0.0.0", port=PORT)
