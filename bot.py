@@ -93,11 +93,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'back':
         await show_main_menu(query, context)
 
-# === Webhook endpoint ===
-@app.route(f'/{TOKEN}', methods=["POST"])
+# @app.route(f'/{TOKEN}', methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    asyncio.run(telegram_app.process_update(update))
+
+    async def handle():
+        await telegram_app.process_update(update)
+
+    asyncio.run(handle())
     return "OK", 200
 
 # === Установка Webhook ===
