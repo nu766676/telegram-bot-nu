@@ -4,12 +4,10 @@ from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
-# Получаем токен и адрес вебхука из переменных окружения
 TOKEN = os.environ.get("TOKEN")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # Например: https://telegram-bot-nu.onrender.com
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 PORT = int(os.environ.get("PORT", 10000))
 
-# Ссылки на файлы в GitHub (RAW-ссылки)
 RAW_BASE = "https://raw.githubusercontent.com/nu766676/telegram-bot-nu/main"
 FILE_URLS = {
     "smile": f"{RAW_BASE}/smile_pic.jpg",
@@ -21,25 +19,19 @@ FILE_URLS = {
     "menu": f"{RAW_BASE}/menu.pdf",
 }
 
-# Flask-приложение
 app = Flask(__name__)
 telegram_app = Application.builder().token(TOKEN).build()
-
-# Состояние для FSM
 NAME = range(1)
 
-# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_photo(photo=FILE_URLS["smile"], caption="Привет! 👋 Я чат-бот «Не Усложняй». Как тебя зовут?")
     return NAME
 
-# Ответ на имя
 async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['name'] = update.message.text
     await show_main_menu(update, context)
     return -1
 
-# Главное меню
 async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("О нас ✴️", callback_data='about'), InlineKeyboardButton("Меню 📋", callback_data='menu')],
@@ -49,13 +41,11 @@ async def show_main_menu(update_or_query, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     caption = f"{context.user_data.get('name', 'Друг')}, я могу быть очень полезным! Что тебя интересует? 😉"
-
     if isinstance(update_or_query, Update):
         await update_or_query.message.reply_photo(photo=FILE_URLS["help"], caption=caption, reply_markup=reply_markup)
     else:
         await update_or_query.message.reply_photo(photo=FILE_URLS["help"], caption=caption, reply_markup=reply_markup)
 
-# Обработка кнопок
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -65,7 +55,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [InlineKeyboardButton("Яндекс Карты 🗺️", url="https://yandex.ru/maps/-/CHFWQPPa")],
             [InlineKeyboardButton("2ГИС Карты 🏙️", url="https://2gis.ru/irkutsk/geo/70000001039853425")],
-            [InlineKeyboardButton("Instagram 📸", url="https://www.instagram.com/nu_irk1?igsh=MW15OWU5NGJ6ZDVnMw==")],
+            [InlineKeyboardButton("Instagram 📸", url="https://www.instagram.com/nu_irk1")],
             [InlineKeyboardButton("Назад ↩️", callback_data='back')],
         ]
         await query.message.reply_photo(photo=FILE_URLS["about"], caption="Мы рады видеть тебя в нашем уютном заведении! 🌟", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -98,32 +88,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'back':
         await show_main_menu(query, context)
 
-# Webhook endpoint
-@app.route(f'/{TOKEN}', methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-    asyncio.run(telegram_app.process_update(update))
-    return "ok", 200
-
-# Установка Webhook + инициализация приложения
-async def startup():
-    await telegram_app.initialize()
-    await telegram_app.start()
-    webhook_url = f"{WEBHOOK_URL}/{TOKEN}"
-    await telegram_app.bot.set_webhook(webhook_url)
-
-# Обработка входящих webhook-запросов
 @app.route(f'/{TOKEN}', methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), telegram_app.bot)
     return asyncio.run(telegram_app.process_update(update)), 200
 
-# Запуск
-if __name__ == '__main__':
-    asyncio.run(startup())
-    app.run(host='0.0.0.0', port=PORT)
+# Установка вебхука + запуск
+async def startup():
+    await telegram_app.initialize()
+    await telegram_app.start()
+    await telegram_app.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+
+# Регистрация хендлеров
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, get_name))
+telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
 # Запуск приложения
 if __name__ == '__main__':
-    asyncio.run(setup_webhook())
-    app.run(host="0.0.0.0", port=PORT)
+    asyncio.run(startup())
+    app.run(host='0.0.0.0', port=PORT)
