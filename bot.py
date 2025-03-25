@@ -132,20 +132,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error in button handler: {e}")
 
 # ===== Webhook Endpoint =====
-@app.route('/webhook', methods=['POST'])
+@app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
+    if request.method == 'GET':
+        return 'Use POST for Telegram updates', 200
+    
     try:
         update = Update.de_json(request.get_json(force=True), telegram_app.bot)
-        
-        # Создаем новый event loop для каждого запроса
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        loop.run_until_complete(telegram_app.process_update(update))
+        asyncio.run(telegram_app.process_update(update))
         return 'OK', 200
     except Exception as e:
-        print(f"Webhook error: {e}")
-        return 'Error', 500
+        print(f"CRITICAL ERROR: {str(e)}")
+        return str(e), 500
+
+# ===== Health Check =====
+@app.route('/')
+def health_check():
+    return "Bot is running", 200
+
+# ===== Error Handler =====
+@app.errorhandler(500)
+def internal_error(e):
+    print(f"Server error: {e}")
+    return "Internal server error", 500
 
 # ===== Startup =====
 async def setup_application():
